@@ -17,9 +17,6 @@
 
 ## 📖 项目简介
 
-本项目基于 [jichang_checkin](https://github.com/runoober/jichang_checkin) 改造，
-将通知方式替换为 **邮件推送**，并对代码进行全面重构优化。
-
 每天定时自动完成所有机场账号的签到任务，签到完成后将结果以
 **精美 HTML 邮件**的形式推送到你的邮箱，支持多账号、多站点同时管理。
 
@@ -62,12 +59,6 @@ jichang_checkin/
 #### 第一步：Fork 本仓库
 
 点击右上角 **Fork** 按钮，将项目复制到你的 GitHub 账号下。
-
-```
-https://github.com/runoober/jichang_checkin
-             ↓ Fork
-https://github.com/你的用户名/jichang_checkin
-```
 
 #### 第二步：配置 Secrets
 
@@ -125,8 +116,8 @@ Actions → 机场自动签到 → Run workflow → Run workflow
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/你的用户名/jichang_checkin.git
-cd jichang_checkin
+git clone https://github.com/jiayaogege/word-checkin.git
+cd word-checkin
 
 # 2. 安装依赖
 pip install -r requirements.txt
@@ -519,7 +510,5 @@ resp = self._post("/user/checkin")
 <div align="center">
 
 **如果本项目对你有帮助，欢迎点个 ⭐ Star！**
-
-Made with ❤️ | 基于 [jichang_checkin](https://github.com/runoober/jichang_checkin) 改造
 
 </div>

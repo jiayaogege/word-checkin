@@ -509,7 +509,7 @@ resp = self._post("/user/checkin")
 2. 创建特性分支：`git checkout -b feature/your-feature`
 3. 提交更改：`git commit -m 'Add some feature'`
 4. 推送分支：`git push origin feature/your-feature`
-5. 提交 Pull Request
+5. 提交 Pull Request。
 
 ---
 

@@ -1,6 +1,3 @@
-# README.md
-
-```markdown
 # ✈️ 机场自动签到助手
 
 <div align="center">

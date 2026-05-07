@@ -4,6 +4,7 @@
 """
 
 import smtplib
+import ssl
 import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -52,9 +53,13 @@ class EmailNotifier:
         if not self._validate_config():
             return False
 
-        subject = self._build_subject(results)
-        html_body = self._build_html_body(results)
-        text_body = self._build_text_body(results)
+        try:
+            subject = self._build_subject(results)
+            html_body = self._build_html_body(results)
+            text_body = self._build_text_body(results)
+        except Exception as e:
+            logger.error(f"构建邮件内容时发生错误: {e}", exc_info=True)
+            return False
 
         return self._send_email(subject, html_body, text_body)
 
@@ -97,7 +102,7 @@ class EmailNotifier:
             <div style="flex:1; min-width:120px; background:#{'#fce4ec' if fail_count > 0 else '#e8f5e9'}; 
                         border-radius:10px; padding:15px; text-align:center; 
                         border-left:4px solid {'#f44336' if fail_count > 0 else '#4caf50'};">
-                <div style="font-size:28px; font-weight:bold; color:"{'#c62828' if fail_count > 0 else '#2e7d32'}";">
+                <div style="font-size:28px; font-weight:bold; color:{'#c62828' if fail_count > 0 else '#2e7d32'};">
                     {fail_count}
                 </div>
                 <div style="color:#555; font-size:13px; margin-top:5px;">❌ 签到失败</div>
@@ -294,16 +299,21 @@ class EmailNotifier:
             msg.attach(MIMEText(text_body, "plain", "utf-8"))
             msg.attach(MIMEText(html_body, "html", "utf-8"))
 
+            # 创建 SSL 上下文
+            context = ssl.create_default_context()
+
             # 发送
             if self.config.smtp_ssl:
+                logger.debug(f"使用 SSL 连接 {self.config.smtp_host}:{self.config.smtp_port}")
                 server = smtplib.SMTP_SSL(
-                    self.config.smtp_host, self.config.smtp_port, timeout=15
+                    self.config.smtp_host, self.config.smtp_port, timeout=15, context=context
                 )
             else:
+                logger.debug(f"使用 STARTTLS 连接 {self.config.smtp_host}:{self.config.smtp_port}")
                 server = smtplib.SMTP(
                     self.config.smtp_host, self.config.smtp_port, timeout=15
                 )
-                server.starttls()
+                server.starttls(context=context)
 
             with server:
                 server.login(self.config.sender_email, self.config.sender_password)
@@ -316,13 +326,18 @@ class EmailNotifier:
             logger.info(f"邮件发送成功 -> {', '.join(self.config.receiver_emails)}")
             return True
 
-        except smtplib.SMTPAuthenticationError:
-            logger.error("邮件认证失败，请检查邮箱账号和密码（或应用专用密码）")
-        except smtplib.SMTPConnectError:
-            logger.error(f"连接 SMTP 服务器失败: {self.config.smtp_host}:{self.config.smtp_port}")
+        except smtplib.SMTPAuthenticationError as e:
+            logger.error(f"邮件认证失败，请检查邮箱账号和密码（或应用专用密码）: {e}")
+        except smtplib.SMTPConnectError as e:
+            logger.error(f"连接 SMTP 服务器失败 {self.config.smtp_host}:{self.config.smtp_port}，"
+                         f"请检查地址和端口是否正确: {e}")
+        except smtplib.SMTPServerDisconnected as e:
+            logger.error(f"SMTP 服务器连接断开，可能是端口或加密方式不匹配: {e}")
         except smtplib.SMTPException as e:
             logger.error(f"SMTP 错误: {e}")
+        except ssl.SSLError as e:
+            logger.error(f"SSL 错误，请检查 SMTP_SSL 设置是否正确（465→true, 587→false）: {e}")
         except Exception as e:
-            logger.error(f"发送邮件时发生未知错误: {e}")
+            logger.error(f"发送邮件时发生未知错误: {e}", exc_info=True)
 
         return False

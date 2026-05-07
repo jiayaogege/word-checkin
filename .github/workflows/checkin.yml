@@ -1,0 +1,48 @@
+# .github/workflows/checkin.yml
+name: 机场自动签到
+
+on:
+  schedule:
+    # 每天北京时间 8:30 执行（UTC 0:30）
+    - cron: "30 0 * * *"
+  workflow_dispatch:  # 支持手动触发
+
+jobs:
+  checkin:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装依赖
+        run: pip install -r requirements.txt
+
+      - name: 执行签到
+        env:
+          # 账号配置（格式: URL|用户名|密码|站点名）
+          ACCOUNT_1: ${{ secrets.ACCOUNT_1 }}
+          ACCOUNT_2: ${{ secrets.ACCOUNT_2 }}
+          # 邮件配置
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_SSL: ${{ secrets.SMTP_SSL }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
+          EMAIL_RECEIVERS: ${{ secrets.EMAIL_RECEIVERS }}
+          SENDER_NAME: "机场签到助手"
+          LOG_LEVEL: "INFO"
+        run: python main.py
+
+      - name: 上传日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkin-logs
+          path: "*.log"
+          retention-days: 7

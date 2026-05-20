@@ -5,6 +5,7 @@
 
 import re
 import time
+import hashlib
 import logging
 import requests
 from typing import Optional, Dict, Any
@@ -60,16 +61,15 @@ class CheckinClient:
         """登录"""
         logger.info(f"正在登录: {username} @ {self.site_url}")
 
-        # 获取登录页面（获取 CSRF Token 等）
-        login_page = self._get("/auth/login")
-        if not login_page:
-            return False
+        # 预热会话。部分站点或 CI 出口 IP 会拒绝登录页 GET，但仍允许接口登录。
+        self._get("/auth/login")
 
         login_data = {
             "email": username,
             "passwd": password,
             "remember_me": "week"
         }
+        login_data.update(self._build_pow_fields())
 
         resp = self._post("/auth/login", data=login_data)
         if not resp:
@@ -91,6 +91,45 @@ class CheckinClient:
                 return True
             logger.error("登录响应解析失败")
             return False
+
+    def _build_pow_fields(self) -> Dict[str, Any]:
+        """生成部分站点登录所需的 PoW 验证参数。"""
+        resp = self._post("/auth/pow_challenge")
+        if not resp:
+            return {}
+
+        try:
+            challenge = resp.json()
+            nonce = self._solve_pow(challenge)
+            if nonce is None:
+                return {}
+            return {
+                "pow_timestamp": challenge["timestamp"],
+                "pow_ip": challenge["ip"],
+                "pow_difficulty": challenge["difficulty"],
+                "pow_salt": challenge["salt"],
+                "pow_signature": challenge["signature"],
+                "pow_nonce": nonce,
+            }
+        except Exception as e:
+            logger.warning(f"生成 PoW 参数失败: {e}")
+            return {}
+
+    def _solve_pow(self, challenge: Dict[str, Any]) -> Optional[int]:
+        """复现登录页 JS 的 SHA-256 工作量证明。"""
+        difficulty = int(challenge["difficulty"])
+        threshold = 0xFFFFFF // difficulty
+        prefix = (
+            f"{challenge['timestamp']}{challenge['ip']}"
+            f"{challenge['difficulty']}{challenge['salt']}"
+        )
+
+        for nonce in range(50_000_000):
+            digest = hashlib.sha256(f"{prefix}{nonce}".encode()).digest()
+            value = (digest[0] << 16) | (digest[1] << 8) | digest[2]
+            if value < threshold:
+                return nonce
+        return None
 
     def checkin(self) -> Dict[str, Any]:
         """执行签到"""

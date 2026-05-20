@@ -27,6 +27,10 @@ class CheckinClient:
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "zh-CN,zh;q=0.9",
         "Content-Type": "application/x-www-form-urlencoded",
+        "X-Requested-With": "XMLHttpRequest",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin",
     }
 
     def __init__(self, site_url: str, timeout: int = 30):
@@ -34,6 +38,10 @@ class CheckinClient:
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update(self.DEFAULT_HEADERS)
+        self.session.headers.update({
+            "Origin": self.site_url,
+            "Referer": f"{self.site_url}/auth/login",
+        })
 
     def _get(self, path: str, **kwargs) -> Optional[requests.Response]:
         """GET 请求"""
@@ -44,6 +52,7 @@ class CheckinClient:
             return resp
         except requests.RequestException as e:
             logger.error(f"GET {url} 失败: {e}")
+            self._log_response_preview(getattr(e, "response", None))
             return None
 
     def _post(self, path: str, data: dict = None, **kwargs) -> Optional[requests.Response]:
@@ -55,7 +64,14 @@ class CheckinClient:
             return resp
         except requests.RequestException as e:
             logger.error(f"POST {url} 失败: {e}")
+            self._log_response_preview(getattr(e, "response", None))
             return None
+
+    def _log_response_preview(self, response: Optional[requests.Response]):
+        if response is not None and response.status_code == 403:
+            preview = response.text[:200].replace("\n", " ").strip()
+            if preview:
+                logger.warning(f"403 响应片段: {preview}")
 
     def login(self, username: str, password: str) -> bool:
         """登录"""

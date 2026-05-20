@@ -53,6 +53,13 @@ class CheckinClientTests(unittest.TestCase):
         self.assertIn("pow_nonce", login_data)
         self.assertEqual(login_data["pow_signature"], "sig")
 
+    def test_default_headers_include_browser_fetch_context(self):
+        client = CheckinClient("https://example.com")
+
+        self.assertEqual(client.session.headers["Referer"], "https://example.com/auth/login")
+        self.assertEqual(client.session.headers["Origin"], "https://example.com")
+        self.assertEqual(client.session.headers["Sec-Fetch-Site"], "same-origin")
+
 
 if __name__ == "__main__":
     unittest.main()

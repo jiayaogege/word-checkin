@@ -6,6 +6,7 @@
 import os
 import json
 import logging
+import re
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -55,14 +56,19 @@ class ConfigManager:
 
     def _load_config(self):
         """加载配置：优先环境变量，其次配置文件"""
-        # 尝试从配置文件加载
-        if os.path.exists(self.config_file):
+        if self._has_env_accounts():
+            self._load_from_env()
+            logger.info("从环境变量加载配置")
+        elif os.path.exists(self.config_file):
             self._load_from_file()
             logger.info(f"从配置文件 {self.config_file} 加载配置")
         else:
-            # 从环境变量加载
             self._load_from_env()
             logger.info("从环境变量加载配置")
+
+    def _has_env_accounts(self) -> bool:
+        """是否配置了环境变量账号。"""
+        return any(os.environ.get(f"ACCOUNT_{i}") for i in range(1, 100))
 
     def _load_from_file(self):
         """从 JSON 配置文件加载"""
@@ -118,7 +124,7 @@ class ConfigManager:
             parts = account_str.split("|")
             if len(parts) >= 3:
                 accounts.append(AccountConfig(
-                    site_url=parts[0].strip(),
+                    site_url=self._clean_account_url(parts[0]),
                     username=parts[1].strip(),
                     password=parts[2].strip(),
                     site_name=parts[3].strip() if len(parts) > 3 else f"站点{i}"
@@ -147,3 +153,7 @@ class ConfigManager:
             request_timeout=int(os.environ.get("REQUEST_TIMEOUT", "30")),
             log_level=os.environ.get("LOG_LEVEL", "INFO")
         )
+
+    def _clean_account_url(self, value: str) -> str:
+        """兼容将 `ACCOUNT_1 = ...` 整行粘贴到 Secret value 的情况。"""
+        return re.sub(r"^ACCOUNT_\d+\s*=\s*", "", value.strip())

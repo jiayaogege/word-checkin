@@ -38,8 +38,22 @@ class ConfigManagerTests(unittest.TestCase):
         with patch.dict(os.environ, env, clear=True):
             config = ConfigManager("missing-config.json").config
 
-        self.assertEqual(config.accounts[0].site_url, "https://ccgfw.top")
+        self.assertEqual(config.accounts[0].site_url, "https://www.ccgfw.top")
         self.assertEqual(config.accounts[0].username, "user@example.com")
+
+    def test_clean_account_url_prefixes_www_for_ccgfw_entry_domain(self):
+        manager = ConfigManager.__new__(ConfigManager)
+
+        cleaned = manager._clean_account_url("ACCOUNT_1=https://ccgfw.top")
+
+        self.assertEqual(cleaned, "https://www.ccgfw.top")
+
+    def test_clean_account_url_keeps_existing_www_domain(self):
+        manager = ConfigManager.__new__(ConfigManager)
+
+        cleaned = manager._clean_account_url("https://www.ccgfw.top")
+
+        self.assertEqual(cleaned, "https://www.ccgfw.top")
 
 
 if __name__ == "__main__":

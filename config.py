@@ -9,8 +9,18 @@ import logging
 import re
 from dataclasses import dataclass, field
 from typing import List, Optional
+from urllib.parse import urlsplit, urlunsplit
 
 logger = logging.getLogger(__name__)
+
+WWW_ENTRY_DOMAINS = {
+    "ccgfw.top",
+    "uugfw.top",
+    "csgfw.top",
+    "okgg.top",
+    "okgfw.top",
+    "ccgfw.online",
+}
 
 
 @dataclass
@@ -82,7 +92,7 @@ class ConfigManager:
                 accounts.append(AccountConfig(
                     username=acc["username"],
                     password=acc["password"],
-                    site_url=acc["site_url"],
+                    site_url=self._clean_account_url(acc["site_url"]),
                     site_name=acc.get("site_name", "未知站点"),
                     enabled=acc.get("enabled", True)
                 ))
@@ -156,4 +166,13 @@ class ConfigManager:
 
     def _clean_account_url(self, value: str) -> str:
         """兼容将 `ACCOUNT_1 = ...` 整行粘贴到 Secret value 的情况。"""
-        return re.sub(r"^ACCOUNT_\d+\s*=\s*", "", value.strip())
+        cleaned = re.sub(r"^ACCOUNT_\d+\s*=\s*", "", value.strip())
+        return self._normalize_entry_domain(cleaned)
+
+    def _normalize_entry_domain(self, site_url: str) -> str:
+        """将入口检测页域名修正为实际登录站点域名。"""
+        parsed = urlsplit(site_url)
+        if parsed.hostname in WWW_ENTRY_DOMAINS:
+            netloc = f"www.{parsed.netloc}"
+            return urlunsplit((parsed.scheme, netloc, parsed.path, parsed.query, parsed.fragment))
+        return site_url

@@ -31,19 +31,22 @@
 - 📝 **日志记录** — 完整的运行日志，自动保存归档
 - 🔒 **安全存储** — 所有敏感信息通过 GitHub Secrets 加密存储
 - 🛠️ **双配置源** — 支持 JSON 配置文件或环境变量两种方式
+- 🧩 **入口兼容** — 自动修正常见入口检测域名（如 `ccgfw.top` → `www.ccgfw.top`）
+- 🐢 **PoW 兼容** — 对需要工作量证明的登录页自动等待，避免触发“操作过快”
 
 ---
 
 ## 📁 项目结构
 
 ```
-jichang_checkin/
+word-checkin/
 ├── main.py              # 主程序入口
 ├── checkin.py           # 签到核心逻辑（登录、签到、重试）
 ├── email_notify.py      # 邮件通知模块（HTML模板、SMTP发送）
 ├── config.py            # 配置管理（环境变量/JSON双来源）
-├── config.json          # 配置文件模板（本地运行使用）
+├── config.json          # 本地配置文件（自建，不提交）
 ├── requirements.txt     # Python 依赖包
+├── tests/               # 回归测试
 ├── .github/
 │   └── workflows/
 │       └── checkin.yml  # GitHub Actions 工作流
@@ -86,8 +89,14 @@ jichang_checkin/
 > # 示例：
 > ACCOUNT_1 = https://abc.example.com|user@gmail.com|mypassword123|ABC机场
 > ACCOUNT_2 = https://xyz.example.com|user@gmail.com|mypassword456|XYZ机场
+>
+> # ccgfw 示例：可直接填裸域名，程序会自动修正到 www 入口
+> ACCOUNT_1 = https://ccgfw.top|user@gmail.com|mypassword123|ccgfw
 > ```
 > 四个字段用竖线 `|` 分隔，站点名称可自定义，用于邮件中显示。
+
+> 邮件通知不是签到必须项。只想先验证签到时，可以暂时不配置邮件相关 Secrets；
+> 邮件配置不完整时程序会跳过邮件发送。
 
 #### 第三步：手动触发测试
 
@@ -121,12 +130,9 @@ cd word-checkin
 
 # 2. 安装依赖
 pip install -r requirements.txt
-
-# 3. 复制并编辑配置文件
-cp config.json.example config.json
 ```
 
-编辑 `config.json`，填写你的账号和邮件信息：
+本仓库不会提交真实 `config.json`。本地运行时请在项目根目录新建 `config.json`，填写你的账号和邮件信息：
 
 ```json
 {
@@ -413,8 +419,9 @@ Actions → 对应的运行记录 → checkin-logs（Artifacts 下载）
 1. 确认账号密码正确（直接在浏览器登录测试）
 2. 检查站点地址是否包含 `https://` 前缀
 3. 站点地址末尾**不要**加 `/`
-4. 部分站点可能有 IP 封锁，GitHub Actions 的 IP 可能被限制（无解）
-5. 查看 Actions 日志中的具体错误信息
+4. 如果日志中出现 `操作过快，请稍后刷新重试`，请确认已经使用最新代码；程序会在 PoW 登录前自动等待以降低触发概率
+5. 部分站点可能有 IP 封锁，GitHub Actions 的 IP 可能被限制（无解）
+6. 查看 Actions 日志中的具体错误信息
 
 </details>
 
@@ -434,10 +441,11 @@ ACCOUNT_4 = https://site4.com|user@mail.com|pass|站点4
 <details>
 <summary><strong>Q：config.json 和环境变量哪个优先级更高？</strong></summary>
 
-**`config.json` 优先级更高。**
+**环境变量账号优先级更高。**
 
-- 存在 `config.json` 文件时：从文件读取配置
-- 不存在 `config.json` 文件时：从环境变量读取配置
+- 只要存在任意 `ACCOUNT_N` 环境变量：从环境变量读取账号配置
+- 没有 `ACCOUNT_N` 环境变量且存在 `config.json`：从本地配置文件读取
+- 两者都没有：按环境变量方式加载，但账号列表为空
 
 GitHub Actions 环境中没有 `config.json`，因此自动使用环境变量（Secrets）。
 本地调试时，`config.json` 更方便。

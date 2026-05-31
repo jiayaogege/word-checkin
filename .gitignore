@@ -13,3 +13,6 @@ __pycache__/
 # IDE
 .vscode/
 .idea/
+
+# Local agent workspace
+.opencode/

@@ -15,6 +15,9 @@ from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
+PROJECT_URL = "https://github.com/jiayaogege/word-checkin"
+PROJECT_NAME = "word-checkin"
+
 
 class CheckinResult:
     """签到结果数据类"""
@@ -235,8 +238,8 @@ class EmailNotifier:
                             💡 <strong>提示：</strong>此邮件由机场签到助手自动发送，请勿回复。<br>
                             🕐 <strong>下次签到：</strong>明日自动执行<br>
                             ⚙️ <strong>项目地址：</strong>
-                            <a href="https://github.com/runoober/jichang_checkin" 
-                               style="color:#667eea;">jichang_checkin</a>
+                            <a href="{PROJECT_URL}" 
+                               style="color:#667eea;">{PROJECT_NAME}</a>
                         </p>
                     </div>
                 </div>

@@ -13,6 +13,8 @@ from email_notify import CheckinResult
 
 logger = logging.getLogger(__name__)
 
+MIN_POW_LOGIN_DELAY = 6.0
+
 
 class CheckinClient:
     """签到客户端"""
@@ -78,6 +80,7 @@ class CheckinClient:
         logger.info(f"正在登录: {username} @ {self.site_url}")
 
         # 预热会话。部分站点或 CI 出口 IP 会拒绝登录页 GET，但仍允许接口登录。
+        login_page_loaded_at = time.monotonic()
         self._get("/auth/login")
 
         login_data = {
@@ -85,7 +88,10 @@ class CheckinClient:
             "passwd": password,
             "remember_me": "week"
         }
-        login_data.update(self._build_pow_fields())
+        pow_fields = self._build_pow_fields()
+        login_data.update(pow_fields)
+        if pow_fields:
+            self._wait_for_pow_login_delay(login_page_loaded_at)
 
         resp = self._post("/auth/login", data=login_data)
         if not resp:
@@ -107,6 +113,14 @@ class CheckinClient:
                 return True
             logger.error("登录响应解析失败")
             return False
+
+    def _wait_for_pow_login_delay(self, login_page_loaded_at: float):
+        """避免刚加载登录页就提交 PoW 登录被站点判定为操作过快。"""
+        elapsed = time.monotonic() - login_page_loaded_at
+        remaining = MIN_POW_LOGIN_DELAY - elapsed
+        if remaining > 0:
+            logger.info(f"等待 {remaining:.1f}s 后提交登录，避免触发操作过快限制")
+            time.sleep(remaining)
 
     def _build_pow_fields(self) -> Dict[str, Any]:
         """生成部分站点登录所需的 PoW 验证参数。"""

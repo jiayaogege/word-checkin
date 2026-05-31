@@ -1,5 +1,6 @@
 import unittest
 import requests
+from unittest.mock import patch
 
 from checkin import CheckinClient
 
@@ -52,6 +53,16 @@ class CheckinClientTests(unittest.TestCase):
         self.assertEqual(login_data["passwd"], "password")
         self.assertIn("pow_nonce", login_data)
         self.assertEqual(login_data["pow_signature"], "sig")
+
+    def test_login_waits_before_posting_pow_login(self):
+        client = CheckinClient("https://example.com")
+        client.session = FakeSession()
+
+        with patch("checkin.time.monotonic", side_effect=[100.0, 101.5]), \
+                patch("checkin.time.sleep") as sleep:
+            self.assertTrue(client.login("user@example.com", "password"))
+
+        sleep.assert_called_once_with(4.5)
 
     def test_default_headers_include_browser_fetch_context(self):
         client = CheckinClient("https://example.com")
